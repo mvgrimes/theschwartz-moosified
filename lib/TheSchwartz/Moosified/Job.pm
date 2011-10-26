@@ -2,7 +2,8 @@ package TheSchwartz::Moosified::Job;
 
 use Moose;
 use Storable ();
-use TheSchwartz::Moosified::Utils qw/sql_for_unixtime run_in_txn/;
+use TheSchwartz::Moosified::Utils qw/sql_for_unixtime run_in_txn
+                                     sql_for_where_not_exists/;
 use TheSchwartz::Moosified::JobHandle;
 
 has 'jobid'         => ( is => 'rw', isa => 'Int' );
@@ -135,11 +136,9 @@ sub set_exit_status {
         my $sth = $dbh->prepare(qq{
             INSERT INTO $table_exitstatus
             (funcid, status, completion_time, delete_after, jobid)
-            SELECT ?, ?, ?, ?, ?
-            WHERE NOT EXISTS (
-                SELECT 1 FROM $table_exitstatus WHERE jobid = ?
-            )
-        });
+            SELECT ?, ?, ?, ?, ?  }
+            .  sql_for_where_not_exists( $dbh, $table_exitstatus )
+        );
         $sth->execute($funcid, @status, $jobid, $jobid);
         $needs_update = ($sth->rows == 0);
     }

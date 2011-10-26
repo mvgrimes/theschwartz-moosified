@@ -4,7 +4,8 @@ use base 'Exporter';
 use Carp;
 use vars qw/@EXPORT_OK/;
 
-@EXPORT_OK = qw/insert_id sql_for_unixtime bind_param_attr run_in_txn order_by_priority/;
+@EXPORT_OK = qw/insert_id sql_for_unixtime bind_param_attr run_in_txn
+                order_by_priority sql_for_where_not_exists/;
 
 sub insert_id {
     my ( $dbh, $sth, $table, $col ) = @_;
@@ -41,6 +42,24 @@ sub sql_for_unixtime {
     }
     
     return time();
+}
+
+sub sql_for_where_not_exists {
+    my ($dbh, $table_exitstatus) = @_;
+
+    my $driver = $dbh->{Driver}{Name};
+    if ( $driver and $driver eq 'mysql' ) {
+        return qq{ FROM $table_exitstatus
+                   WHERE NOT EXISTS (
+                   SELECT 1 FROM $table_exitstatus WHERE jobid = ?
+                   )
+                   LIMIT 1 };
+    } else {
+        return qq{ WHERE NOT EXISTS (
+                   SELECT 1 FROM $table_exitstatus WHERE jobid = ?
+                   ) };
+
+    }
 }
 
 sub bind_param_attr {
