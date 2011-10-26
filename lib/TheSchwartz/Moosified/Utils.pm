@@ -2,10 +2,12 @@ package TheSchwartz::Moosified::Utils;
 
 use base 'Exporter';
 use Carp;
+use Scalar::Util qw(blessed);
 use vars qw/@EXPORT_OK/;
 
 @EXPORT_OK = qw/insert_id sql_for_unixtime bind_param_attr run_in_txn
-                order_by_priority sql_for_where_not_exists/;
+                order_by_priority sql_for_where_not_exists
+                coerce_dbh_from_connect_strings/;
 
 sub insert_id {
     my ( $dbh, $sth, $table, $col ) = @_;
@@ -114,6 +116,32 @@ sub run_in_txn (&$) {
 
     return @rv if wantarray;
     return $rv;
+}
+
+sub coerce_dbh_from_connect_strings {
+    my ($connect_strings) = @_;
+    my @dbhs;
+    for (@$connect_strings) {
+        if ( blessed $_ && $_->isa('DBI::db') ) {
+
+            # warn "### got dbi::db already";
+            push @dbhs, $_;
+        } else {
+            push @dbhs,
+              DBI->connect(
+                $_->{dsn},
+                $_->{user},
+                $_->{pass},
+                {
+                    AutoCommit => 1,
+                    RaiseError => 0,
+                    PrintError => 0,
+                } )
+              or croak
+              "Databases requires ArraryRef of dbh or connect info (dsn,user,pass).";
+        }
+    }
+    return \@dbhs;
 }
 
 1;

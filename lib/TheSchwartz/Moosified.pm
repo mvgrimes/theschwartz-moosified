@@ -7,7 +7,10 @@ use Scalar::Util qw( refaddr );
 use List::Util qw( shuffle );
 use File::Spec ();
 use Storable ();
-use TheSchwartz::Moosified::Utils qw/insert_id sql_for_unixtime bind_param_attr run_in_txn order_by_priority/;
+use DBI;
+use TheSchwartz::Moosified::Utils qw/insert_id sql_for_unixtime
+            bind_param_attr run_in_txn order_by_priority
+            coerce_dbh_from_connect_strings/;
 use TheSchwartz::Moosified::Job;
 use TheSchwartz::Moosified::JobHandle;
 
@@ -35,6 +38,12 @@ coerce 'TheSchwartz.Moosified.Verbose'
             return sub { 0 };
         }
     };
+subtype 'TheSchwartz.Moosified.Databases'
+    => as 'ArrayRef[DBI::db]'
+    => where { 1; };
+coerce 'TheSchwartz.Moosified.Databases'
+    => from 'ArrayRef'
+    => via { coerce_dbh_from_connect_strings $_ };
 
 has 'verbose' => ( is => 'rw', isa => 'TheSchwartz.Moosified.Verbose', coerce => 1, default => 0 );
 has 'prioritize' => ( is => 'rw', isa => 'Bool', default => 0 );
@@ -44,7 +53,8 @@ has 'retry_at' => ( is => 'rw', isa => 'HashRef', default => sub { {} } );
 
 has 'databases' => (
     is => 'rw',
-    isa => 'ArrayRef',
+    isa => 'TheSchwartz.Moosified.Databases',
+    coerce => 1,
     default => sub { [] },
 );
 
